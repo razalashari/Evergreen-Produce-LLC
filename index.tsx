@@ -31,13 +31,18 @@ import {
   UserPlus,
   FileDown,
   Loader2,
-  CalendarDays
+  CalendarDays,
+  PackagePlus,
+  Target
 } from 'lucide-react';
 
 // --- Types & Interfaces ---
 
 type Category = 'Vegetable' | 'Fruit' | 'Grocery' | 'Other';
 type UnitType = 'Kg' | 'Lb' | 'Box' | 'Bunch' | 'Piece';
+
+const CATEGORIES: Category[] = ['Vegetable', 'Fruit', 'Grocery', 'Other'];
+const UNIT_TYPES: UnitType[] = ['Kg', 'Lb', 'Box', 'Bunch', 'Piece'];
 
 interface Customer {
   id: string;
@@ -81,7 +86,7 @@ interface Invoice {
 
 const BUSINESS_NAME = "EVER GREEN PRODUCE L.L.C";
 const BUSINESS_PHONE = "646-667-9749";
-const ORDER_PHONE = "646-667-9749"; // Updated as requested
+const ORDER_PHONE = "646-667-9749";
 
 const PRODUCT_NAMES = [
   "Baby Mustard", "Cabbage", "Cauliflower(12 head)", "Chilli (Finger Hot)", "Chilli (Small Thai)",
@@ -138,6 +143,98 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, React.Dispatch<Re
 }
 
 // --- Components ---
+
+const AddProductModal = ({ 
+  isOpen, 
+  onClose, 
+  onSave 
+}: { 
+  isOpen: boolean, 
+  onClose: () => void, 
+  onSave: (p: Omit<Product, 'id'>) => void 
+}) => {
+  const [formData, setFormData] = useState<Omit<Product, 'id'>>({
+    name: '',
+    category: 'Vegetable',
+    unitType: 'Kg',
+    price: 0
+  });
+
+  if (!isOpen) return null;
+
+  const handleSave = () => {
+    if (!formData.name) return alert("Product name is required");
+    onSave(formData);
+    setFormData({ name: '', category: 'Vegetable', unitType: 'Kg', price: 0 });
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/60 z-[101] flex items-center justify-center p-4 backdrop-blur-md">
+      <div className="bg-white rounded-[2.5rem] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in duration-200">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-3 bg-orange-100 rounded-2xl text-orange-600">
+            <PackagePlus size={24} />
+          </div>
+          <h3 className="font-black text-slate-900 uppercase text-xl tracking-tighter">New Product</h3>
+        </div>
+        
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Item Name</label>
+            <input 
+              autoFocus 
+              placeholder="e.g. Red Grapes" 
+              value={formData.name} 
+              onChange={e => setFormData({...formData, name: e.target.value})} 
+              className="w-full border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold bg-slate-50 focus:border-orange-500 outline-none transition-all" 
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Category</label>
+              <select 
+                value={formData.category} 
+                onChange={e => setFormData({...formData, category: e.target.value as Category})} 
+                className="w-full border border-slate-200 rounded-2xl px-4 py-3.5 text-sm font-bold bg-slate-50 focus:border-orange-500 outline-none transition-all"
+              >
+                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Unit</label>
+              <select 
+                value={formData.unitType} 
+                onChange={e => setFormData({...formData, unitType: e.target.value as UnitType})} 
+                className="w-full border border-slate-200 rounded-2xl px-4 py-3.5 text-sm font-bold bg-slate-50 focus:border-orange-500 outline-none transition-all"
+              >
+                {UNIT_TYPES.map(u => <option key={u} value={u}>{u}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Base Price ($)</label>
+            <input 
+              type="number"
+              step="0.01"
+              placeholder="0.00" 
+              value={formData.price || ''} 
+              onChange={e => setFormData({...formData, price: parseFloat(e.target.value) || 0})} 
+              className="w-full border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-mono font-bold bg-slate-50 focus:border-orange-500 outline-none transition-all text-right" 
+            />
+          </div>
+
+          <div className="flex gap-3 pt-6">
+            <button onClick={onClose} className="flex-1 py-4 bg-slate-100 font-black rounded-2xl text-[10px] uppercase text-slate-500 hover:bg-slate-200 transition-colors">Cancel</button>
+            <button onClick={handleSave} className="flex-1 py-4 bg-orange-600 text-white font-black rounded-2xl text-[10px] uppercase shadow-lg shadow-orange-900/20 hover:bg-orange-700 transition-colors">Add Item</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const Sidebar = ({ 
   currentView, 
@@ -250,7 +347,6 @@ const ViewHeader = ({
 
 // --- Adaptive Professional Produce Invoice Print ---
 const InvoicePrint = React.forwardRef<HTMLDivElement, { invoice: Invoice }>(({ invoice }, ref) => {
-  // Only show items with quantity > 0
   const activeItems = invoice.items.filter(item => item.quantity > 0);
   const itemCount = activeItems.length;
   
@@ -441,14 +537,16 @@ const InvoiceForm = ({
   initialInvoice, 
   onSubmit, 
   onCancel, 
-  onAddCustomer 
+  onAddCustomer,
+  onAddProduct
 }: { 
   customers: Customer[], 
   products: Product[], 
   initialInvoice?: Invoice | null, 
   onSubmit: (inv: Invoice) => void, 
   onCancel: () => void, 
-  onAddCustomer: (c: Omit<Customer, 'id' | 'createdAt'>) => void 
+  onAddCustomer: (c: Omit<Customer, 'id' | 'createdAt'>) => void,
+  onAddProduct: (p: Omit<Product, 'id'>) => Product
 }) => {
   const [selectedCustomerId, setSelectedCustomerId] = useState(initialInvoice?.customerId || '');
   const [clientSearchTerm, setClientSearchTerm] = useState('');
@@ -457,18 +555,15 @@ const InvoiceForm = ({
   const [searchTerm, setSearchTerm] = useState('');
   
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
+  const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
   const [newClientData, setNewClientData] = useState({ name: '', address: '', phone: '' });
 
-  // Improved filtering: only show customers that match search
   const filteredCustomers = useMemo(() => {
     return customers.filter(c => 
       c.name.toLowerCase().includes(clientSearchTerm.toLowerCase()) || 
       c.phone.includes(clientSearchTerm)
     );
   }, [clientSearchTerm, customers]);
-
-  // If filtered list changes and current selection is not in it, maybe clear? 
-  // No, keep selected ID unless user changes it.
 
   const filteredProducts = useMemo(() => {
     return products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -483,10 +578,6 @@ const InvoiceForm = ({
     }
   };
 
-  const updateItem = (id: string, qty: number, price: number) => {
-    setItems(items.map(i => i.productId === id ? { ...i, quantity: qty, price: price, total: qty * price } : i));
-  };
-
   const handleQuickAddClient = () => {
     if (!newClientData.name || !newClientData.phone) return alert("Missing required fields");
     onAddCustomer(newClientData);
@@ -494,11 +585,19 @@ const InvoiceForm = ({
     setIsAddClientModalOpen(false);
   };
 
+  const handleQuickAddProduct = (newProd: Omit<Product, 'id'>) => {
+    const created = onAddProduct(newProd);
+    addItem(created); // Automatically add it to the order
+  };
+
+  const updateItem = (id: string, qty: number, price: number) => {
+    setItems(items.map(i => i.productId === id ? { ...i, quantity: qty, price: price, total: qty * price } : i));
+  };
+
   const handleComplete = () => {
     const customer = customers.find(c => c.id === selectedCustomerId);
     if (!customer) return alert('Select a customer.');
     
-    // Filter out items with 0 quantity before submitting
     const finalItems = items.filter(i => i.quantity > 0);
     if (finalItems.length === 0) return alert('Add items with quantities greater than zero.');
 
@@ -545,7 +644,7 @@ const InvoiceForm = ({
                       {filteredCustomers.length === 0 && <option disabled>No clients found</option>}
                    </select>
                 </div>
-                <button onClick={() => setIsAddClientModalOpen(true)} className="p-3.5 bg-green-600 text-white rounded-xl shadow-lg active:scale-95 transition-all" title="Add New Client"><UserPlus size={18}/></button>
+                <button onClick={() => setIsAddClientModalOpen(true)} className="p-3.5 bg-green-600 text-white rounded-xl shadow-lg active:scale-95 transition-all hover:bg-green-700" title="Add New Client"><UserPlus size={18}/></button>
               </div>
               <input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none bg-slate-50 font-black focus:border-green-500" />
            </div>
@@ -566,7 +665,6 @@ const InvoiceForm = ({
                          <tr key={i.productId} className="hover:bg-slate-50">
                             <td className="px-4 py-2 font-black text-slate-800 uppercase text-[10px] leading-tight">{i.name}</td>
                             <td className="px-2 py-2">
-                              {/* If value is 0, show empty string so it "vanishes" and is easy to type over */}
                               <input 
                                 type="number" 
                                 value={i.quantity === 0 ? '' : i.quantity} 
@@ -614,9 +712,18 @@ const InvoiceForm = ({
         </div>
 
         <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm h-[600px] flex flex-col">
-           <div className="relative mb-4">
-              <Search className="absolute left-3 top-3.5 text-slate-300" size={16} />
-              <input placeholder="Filter products..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl text-sm font-bold bg-slate-50 outline-none focus:border-green-500 transition-all" />
+           <div className="flex gap-2 mb-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-3.5 text-slate-300" size={16} />
+                <input placeholder="Filter products..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl text-sm font-bold bg-slate-50 outline-none focus:border-orange-500 transition-all" />
+              </div>
+              <button 
+                onClick={() => setIsAddProductModalOpen(true)}
+                className="p-3 bg-orange-600 text-white rounded-xl shadow-lg active:scale-95 transition-all hover:bg-orange-700" 
+                title="New Inventory Item"
+              >
+                <PackagePlus size={20}/>
+              </button>
            </div>
            <div className="flex-1 overflow-y-auto space-y-1 pr-0.5 custom-scrollbar">
               {filteredProducts.map(p => (
@@ -630,21 +737,46 @@ const InvoiceForm = ({
                     </div>
                  </button>
               ))}
+              {filteredProducts.length === 0 && (
+                <div className="py-12 text-center">
+                  <p className="text-[10px] font-black text-slate-300 uppercase italic">No items match search</p>
+                </div>
+              )}
            </div>
         </div>
       </div>
 
+      <AddProductModal 
+        isOpen={isAddProductModalOpen} 
+        onClose={() => setIsAddProductModalOpen(false)} 
+        onSave={handleQuickAddProduct} 
+      />
+
       {isAddClientModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 z-[100] flex items-center justify-center p-4 backdrop-blur-md">
-           <div className="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-in zoom-in duration-200">
-              <h3 className="font-black text-slate-900 uppercase text-xl mb-6 tracking-tighter">New Client Entry</h3>
-              <div className="space-y-3">
-                 <input autoFocus placeholder="Business Name" value={newClientData.name} onChange={e => setNewClientData({...newClientData, name: e.target.value})} className="w-full border border-slate-200 rounded-xl px-5 py-3 text-sm font-bold bg-slate-50 focus:border-green-500" />
-                 <input placeholder="Store Address" value={newClientData.address} onChange={e => setNewClientData({...newClientData, address: e.target.value})} className="w-full border border-slate-200 rounded-xl px-5 py-3 text-sm font-bold bg-slate-50 focus:border-green-500" />
-                 <input placeholder="Phone Number" value={newClientData.phone} onChange={e => setNewClientData({...newClientData, phone: e.target.value})} className="w-full border border-slate-200 rounded-xl px-5 py-3 text-sm font-bold bg-slate-50 focus:border-green-500" />
+           <div className="bg-white rounded-[2.5rem] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in duration-200">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-3 bg-green-100 rounded-2xl text-green-600">
+                  <UserPlus size={24} />
+                </div>
+                <h3 className="font-black text-slate-900 uppercase text-xl tracking-tighter">New Client Entry</h3>
+              </div>
+              <div className="space-y-4">
+                 <div className="space-y-1">
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Business Name</label>
+                   <input autoFocus placeholder="e.g. Gotham Market" value={newClientData.name} onChange={e => setNewClientData({...newClientData, name: e.target.value})} className="w-full border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold bg-slate-50 focus:border-green-500 outline-none" />
+                 </div>
+                 <div className="space-y-1">
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Store Address</label>
+                   <input placeholder="123 Street Ave, NY" value={newClientData.address} onChange={e => setNewClientData({...newClientData, address: e.target.value})} className="w-full border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold bg-slate-50 focus:border-green-500 outline-none" />
+                 </div>
+                 <div className="space-y-1">
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone Number</label>
+                   <input placeholder="(555) 000-0000" value={newClientData.phone} onChange={e => setNewClientData({...newClientData, phone: e.target.value})} className="w-full border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold bg-slate-50 focus:border-green-500 outline-none" />
+                 </div>
                  <div className="flex gap-3 pt-4">
-                    <button onClick={() => setIsAddClientModalOpen(false)} className="flex-1 py-3 bg-slate-100 font-black rounded-xl text-[10px] uppercase text-slate-500">Cancel</button>
-                    <button onClick={handleQuickAddClient} className="flex-1 py-3 bg-green-600 text-white font-black rounded-xl text-[10px] uppercase shadow-lg">Save Client</button>
+                    <button onClick={() => setIsAddClientModalOpen(false)} className="flex-1 py-4 bg-slate-100 font-black rounded-2xl text-[10px] uppercase text-slate-500 hover:bg-slate-200 transition-colors">Cancel</button>
+                    <button onClick={handleQuickAddClient} className="flex-1 py-4 bg-green-600 text-white font-black rounded-2xl text-[10px] uppercase shadow-lg hover:bg-green-700 transition-colors">Save Client</button>
                  </div>
               </div>
            </div>
@@ -741,6 +873,8 @@ const App = () => {
   const [view, setView] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
+  const [productSearch, setProductSearch] = useState('');
   
   const [customers, setCustomers] = useLocalStorage<Customer[]>('eg_customers', []);
   const [products, setProducts] = useLocalStorage<Product[]>('eg_products', INITIAL_PRODUCTS);
@@ -767,6 +901,18 @@ const App = () => {
     setCustomers([...customers, { id: generateId(), ...c, createdAt: new Date().toISOString() }]);
   };
 
+  const handleAddProduct = (p: Omit<Product, 'id'>) => {
+    const newProduct: Product = { id: generateId(), ...p };
+    setProducts([...products, newProduct]);
+    return newProduct;
+  };
+
+  const handleDeleteProduct = (id: string) => {
+    if (window.confirm("Delete this product from inventory?")) {
+      setProducts(products.filter(p => p.id !== id));
+    }
+  };
+
   const handleDownloadPDF = async () => {
     if (!activePrintInvoice) return;
     setIsGenerating(true);
@@ -781,7 +927,7 @@ const App = () => {
     };
 
     try {
-      // @ts-ignore - html2pdf is globally available from the script tag
+      // @ts-ignore
       await window.html2pdf().set(opt).from(element).save();
     } catch (error) {
       console.error('PDF Generation failed', error);
@@ -791,6 +937,11 @@ const App = () => {
       setIsGenerating(false);
     }
   };
+
+  const filteredProducts = products.filter(p => 
+    p.name.toLowerCase().includes(productSearch.toLowerCase()) || 
+    p.category.toLowerCase().includes(productSearch.toLowerCase())
+  );
 
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -818,17 +969,57 @@ const App = () => {
           )}
           {view === 'products' && (
              <div className="p-4 space-y-4">
-                <ViewHeader title="Inventory Master" onBack={() => setView('dashboard')} />
+                <ViewHeader 
+                  title="Inventory Master" 
+                  onBack={() => setView('dashboard')} 
+                  action={
+                    <button 
+                      onClick={() => setIsAddProductModalOpen(true)}
+                      className="bg-orange-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-orange-900/20 active:scale-95 transition-all"
+                    >
+                      <PackagePlus size={16}/> New Product
+                    </button>
+                  }
+                />
+                
+                <div className="bg-white p-4 rounded-3xl border border-slate-200 flex items-center gap-2 shadow-sm mb-4">
+                  <Search size={18} className="text-slate-400" />
+                  <input placeholder="Search products or categories..." className="flex-1 outline-none text-sm font-bold text-slate-700" value={productSearch} onChange={e => setProductSearch(e.target.value)} />
+                </div>
+
                 <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
                    <table className="w-full text-left text-sm">
-                      <thead className="bg-slate-50 border-b"><tr className="text-xs uppercase font-black text-slate-400">
-                        <th className="px-6 py-4">Item Name</th><th className="px-6 py-4 text-right">Base Price</th>
-                      </tr></thead>
-                      <tbody className="divide-y divide-slate-100">{products.map(p => (
-                        <tr key={p.id} className="hover:bg-slate-50"><td className="px-6 py-4 font-bold uppercase">{p.name}</td><td className="px-6 py-4 text-right font-mono">{formatCurrency(p.price)}</td></tr>
-                      ))}</tbody>
+                      <thead className="bg-slate-50 border-b">
+                        <tr className="text-xs uppercase font-black text-slate-400">
+                          <th className="px-6 py-4">Item Name</th>
+                          <th className="px-6 py-4">Category</th>
+                          <th className="px-6 py-4 text-right">Base Price</th>
+                          <th className="px-6 py-4"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredProducts.map(p => (
+                          <tr key={p.id} className="hover:bg-slate-50 group">
+                            <td className="px-6 py-4 font-bold uppercase">{p.name}</td>
+                            <td className="px-6 py-4">
+                              <span className="text-[10px] font-black uppercase px-3 py-1 bg-slate-100 rounded-full text-slate-500">{p.category}</span>
+                            </td>
+                            <td className="px-6 py-4 text-right font-mono font-bold text-slate-700">{formatCurrency(p.price)} <span className="text-[10px] text-slate-400">/ {p.unitType}</span></td>
+                            <td className="px-6 py-4 text-right">
+                              <button onClick={() => handleDeleteProduct(p.id)} className="p-2 text-red-400 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"><Trash2 size={16}/></button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
                    </table>
+                   {filteredProducts.length === 0 && <div className="p-12 text-center text-slate-400 font-bold uppercase text-xs italic">No items found</div>}
                 </div>
+
+                <AddProductModal 
+                  isOpen={isAddProductModalOpen} 
+                  onClose={() => setIsAddProductModalOpen(false)} 
+                  onSave={handleAddProduct} 
+                />
              </div>
           )}
           {view === 'invoices' && (
@@ -850,6 +1041,7 @@ const App = () => {
               onSubmit={handleCreateInvoice} 
               onCancel={() => setView('dashboard')} 
               onAddCustomer={handleQuickAddCustomer} 
+              onAddProduct={handleAddProduct}
             />
           )}
           {view === 'edit-invoice' && editingInvoice && (
@@ -860,6 +1052,7 @@ const App = () => {
               onSubmit={handleUpdateInvoice} 
               onCancel={() => { setEditingInvoice(null); setView('invoices'); }} 
               onAddCustomer={handleQuickAddCustomer} 
+              onAddProduct={handleAddProduct}
             />
           )}
 
