@@ -446,7 +446,7 @@ const InvoicePrint = React.forwardRef<HTMLDivElement, { invoice: Invoice, layout
   );
 
   return (
-    <div ref={ref} id="invoice-content" className={`bg-white w-[210mm] h-[297mm] mx-auto p-8 text-slate-900 font-sans flex flex-col leading-snug`} style={{ fontSize: dynamicFontSize }}>
+    <div ref={ref} id="invoice-content" className={`bg-white w-[210mm] mx-auto p-8 text-slate-900 font-sans flex flex-col leading-snug`} style={{ fontSize: dynamicFontSize }}>
       <header className="flex justify-between items-start pb-4 border-b-2 border-slate-900">
         <div className="flex items-center gap-4">
           <div className="bg-green-600 p-2.5 rounded-lg text-white"><Leaf size={28} /></div>
@@ -462,7 +462,7 @@ const InvoicePrint = React.forwardRef<HTMLDivElement, { invoice: Invoice, layout
         </div>
       </header>
 
-      <div className="flex-grow flex flex-col">
+      <div>
         <section className={`my-6 grid grid-cols-2 gap-12 ${billToPadding}`}>
           <div>
             <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Bill To</h2>
@@ -475,7 +475,7 @@ const InvoicePrint = React.forwardRef<HTMLDivElement, { invoice: Invoice, layout
           </div>
         </section>
 
-        <main className={`flex flex-col overflow-hidden pt-2 flex-grow ${fontSizeClass}`}>
+        <main className={`flex flex-col overflow-hidden pt-2 ${fontSizeClass}`}>
           {useTwoColumn ? (
             <div className="grid grid-cols-2 gap-x-6">
               {renderItems(activeItems.slice(0, Math.ceil(itemCount / 2)))}
@@ -1018,20 +1018,18 @@ const App = () => {
     <>
       <style>{`
         @media print {
-          body > *:not(#invoice-content) {
-            display: none;
+          body * {
+            visibility: hidden;
           }
-          body {
-            margin: 0;
-            padding: 0;
+          #invoice-content, #invoice-content * {
+            visibility: visible;
           }
           #invoice-content {
-            visibility: visible;
             position: absolute;
             left: 0;
             top: 0;
             width: 100%;
-            height: 100%;
+            height: auto;
             margin: 0;
             padding: 0;
             border: none;
