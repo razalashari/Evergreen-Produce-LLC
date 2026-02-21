@@ -40,6 +40,7 @@ import {
 
 type Category = 'Vegetable' | 'Fruit' | 'Grocery' | 'Other';
 type UnitType = 'Kg' | 'Lb' | 'Box' | 'Bunch' | 'Piece';
+type LayoutOption = 'single-column-large' | 'single-column-condensed' | 'two-column' | 'universal-fit';
 
 const CATEGORIES: Category[] = ['Vegetable', 'Fruit', 'Grocery', 'Other'];
 const UNIT_TYPES: UnitType[] = ['Kg', 'Lb', 'Box', 'Bunch', 'Piece'];
@@ -345,97 +346,162 @@ const ViewHeader = ({
   </div>
 );
 
-// --- Adaptive Professional Produce Invoice Print ---
-const InvoicePrint = React.forwardRef<HTMLDivElement, { invoice: Invoice }>(({ invoice }, ref) => {
-  const activeItems = invoice.items.filter(item => item.quantity > 0);
-  const itemCount = activeItems.length;
-  
-  const tableFontSize = itemCount > 45 ? 'text-[7pt]' : itemCount > 25 ? 'text-[8pt]' : 'text-[9.5pt]';
-  const rowHeight = itemCount > 45 ? 'h-[17px]' : itemCount > 25 ? 'h-[21px]' : 'h-[28px]';
-  const paddingY = itemCount > 45 ? 'py-0' : 'py-0.5';
+const LivePreviewModal = ({ isOpen, onClose, onPrint, onDownload, invoice }: { isOpen: boolean, onClose: () => void, onPrint: (layout: LayoutOption) => void, onDownload: (layout: LayoutOption) => void, invoice: Invoice | null }) => {
+  const [layout, setLayout] = useState<LayoutOption>('single-column-large');
+  const invoiceRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (invoice) {
+      const count = invoice.items.filter(i => i.quantity > 0).length;
+      if (count <= 15) setLayout('single-column-large');
+      else if (count <= 30) setLayout('single-column-condensed');
+      else if (count <= 50) setLayout('two-column');
+      else setLayout('universal-fit');
+    }
+  }, [invoice]);
+
+  if (!isOpen || !invoice) return null;
+
+  const layoutOptions: { id: LayoutOption, label: string }[] = [
+    { id: 'single-column-large', label: 'Layout A' },
+    { id: 'single-column-condensed', label: 'Layout B' },
+    { id: 'two-column', label: 'Layout C' },
+    { id: 'universal-fit', label: 'Layout D' },
+  ];
 
   return (
-    <div ref={ref} id="invoice-content" className="bg-white min-h-[296mm] w-full max-w-[210mm] mx-auto p-8 text-slate-900 font-sans flex flex-col leading-tight overflow-hidden">
-      
-      <div className="flex justify-between items-start border-b-2 border-slate-900 pb-3 mb-4">
-        <div className="flex items-center gap-3">
-          <div className="bg-green-600 p-2 rounded text-white flex items-center justify-center h-10 w-10">
-             <Leaf size={24} />
-          </div>
+    <div className="fixed inset-0 bg-slate-900/80 z-[101] flex flex-col items-center p-4 backdrop-blur-sm overflow-y-auto">
+      <div className="w-full max-w-5xl flex justify-between items-center py-4 sticky top-0 z-10">
+        <div className="flex items-center gap-4 rounded-2xl bg-white/10 p-2">
+          {layoutOptions.map(opt => (
+            <button key={opt.id} onClick={() => setLayout(opt.id)} className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${layout === opt.id ? 'bg-white text-slate-900' : 'text-white/70 hover:bg-white/20'}`}>{opt.label}</button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <button onClick={onClose} className="py-2 px-4 bg-slate-600 text-white font-bold rounded-lg text-xs">Cancel</button>
+          <button onClick={() => onPrint(layout)} className="py-2 px-4 bg-blue-600 text-white font-bold rounded-lg text-xs flex items-center gap-2"><Printer size={14}/> Print Document</button>
+          <button onClick={() => onDownload(layout)} className="py-2 px-4 bg-green-600 text-white font-bold rounded-lg text-xs flex items-center gap-2"><FileDown size={14}/> Download PDF</button>
+        </div>
+      </div>
+      <div className="w-[210mm] shadow-2xl rounded-lg overflow-hidden my-auto">
+        <InvoicePrint ref={invoiceRef} invoice={invoice} layout={layout} />
+      </div>
+    </div>
+  );
+};
+
+
+// --- Adaptive Professional Produce Invoice Print ---
+const InvoicePrint = React.forwardRef<HTMLDivElement, { invoice: Invoice, layout: LayoutOption }>(({ invoice, layout }, ref) => {
+  const activeItems = invoice.items.filter(item => item.quantity > 0);
+  const itemCount = activeItems.length;
+
+  const isUniversal = layout === 'universal-fit';
+  const useTwoColumn = isUniversal ? itemCount > 20 : layout === 'two-column';
+
+  // Dynamic sizing for Universal Fit
+  const dynamicFontSize = isUniversal 
+    ? (itemCount <= 20 ? '12pt' : '9.5pt')
+    : (layout === 'single-column-large' ? '10pt' : layout === 'single-column-condensed' ? '8pt' : '7.5pt');
+
+  const dynamicVerticalPadding = isUniversal
+    ? (itemCount <= 20 ? 'py-3' : 'py-1')
+    : (layout === 'single-column-large' ? 'py-2' : layout === 'single-column-condensed' ? 'py-1' : 'py-0.5');
+
+  const billToPadding = isUniversal && itemCount < 15 ? 'pb-16' : 'pb-0';
+
+  const fontSizeClass = !isUniversal ? {
+    'single-column-large': 'text-[10pt]',
+    'single-column-condensed': 'text-[8pt]',
+    'two-column': 'text-[7.5pt]',
+    'universal-fit': ''
+  }[layout] : '';
+
+  const verticalPadding = !isUniversal ? {
+    'single-column-large': 'py-2',
+    'single-column-condensed': 'py-1',
+    'two-column': 'py-0.5',
+    'universal-fit': ''
+  }[layout] : '';
+
+  const renderItems = (items: InvoiceItem[], offset = 0) => (
+    <div className="flex flex-col"> 
+      <div className="flex font-black uppercase text-slate-500 border-b-2 border-slate-900 text-[7pt] py-1">
+        <div className="w-6 pl-1">#</div>
+        <div className="flex-1">Item</div>
+        <div className="w-10 text-center">Qty</div>
+        <div className="w-16 text-right">Price</div>
+        <div className="w-20 text-right pr-1">Total</div>
+      </div>
+      {items.map((item, idx) => (
+        <div key={idx} className={`flex border-b border-slate-100 items-start ${verticalPadding}`} style={{ pageBreakInside: 'avoid' }}>
+          <div className="w-6 pl-1 font-mono text-slate-400 pt-0.5">{offset + idx + 1}</div>
+          <div className="flex-1 font-bold uppercase tracking-tight text-slate-800 leading-tight">{item.name}</div>
+          <div className="w-10 text-center font-mono font-bold pt-0.5">{item.quantity}</div>
+          <div className="w-16 text-right font-mono text-slate-500 pt-0.5">{formatCurrency(item.price)}</div>
+          <div className="w-20 text-right pr-1 font-mono font-black pt-0.5">{formatCurrency(item.total)}</div>
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <div ref={ref} id="invoice-content" className={`bg-white w-[210mm] h-[297mm] mx-auto p-8 text-slate-900 font-sans flex flex-col leading-snug`} style={{ fontSize: dynamicFontSize }}>
+      <header className="flex justify-between items-start pb-4 border-b-2 border-slate-900">
+        <div className="flex items-center gap-4">
+          <div className="bg-green-600 p-2.5 rounded-lg text-white"><Leaf size={28} /></div>
           <div>
-            <h1 className="text-[13pt] font-bold text-slate-900 leading-none uppercase tracking-tight">{BUSINESS_NAME}</h1>
-            <p className="text-[9pt] font-semibold text-slate-600 mt-1">Phone: {BUSINESS_PHONE}</p>
+            <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">{BUSINESS_NAME}</h1>
+            <p className="text-sm font-semibold text-slate-500">Phone: {BUSINESS_PHONE}</p>
           </div>
         </div>
+        <div className="text-right">
+          <p className="text-2xl font-black uppercase tracking-widest">Invoice</p>
+          <p className="font-mono text-slate-500 text-sm mt-1"># {invoice.number}</p>
+          <p className="font-bold text-slate-500 text-sm mt-2">Date: {new Date(invoice.date).toLocaleDateString()}</p>
+        </div>
+      </header>
 
-        <div className="flex items-center gap-6">
+      <div className="flex-grow flex flex-col">
+        <section className={`my-6 grid grid-cols-2 gap-12 ${billToPadding}`}>
+          <div>
+            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Bill To</h2>
+            <p className="text-lg font-bold text-slate-800 uppercase leading-tight">{invoice.customerName}</p>
+            <p className="text-sm text-slate-500 font-medium leading-snug mt-1">{invoice.customerAddress}</p>
+          </div>
           <div className="text-right">
-            <p className="text-[6.5pt] font-black text-slate-400 uppercase tracking-widest mb-1">Date Issued</p>
-            <p className="text-[9pt] font-bold text-slate-900">{new Date(invoice.date).toLocaleDateString()}</p>
+            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Payment Terms</h2>
+            <p className="text-md font-semibold text-slate-700">Due on Delivery</p>
           </div>
-          <div className="bg-slate-50 border border-slate-200 rounded px-3 py-2 text-center min-w-[110px]">
-            <p className="text-[6pt] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Invoice #</p>
-            <p className="text-[10pt] font-mono font-black leading-none uppercase">{invoice.number}</p>
+        </section>
+
+        <main className={`flex flex-col overflow-hidden pt-2 flex-grow ${fontSizeClass}`}>
+          {useTwoColumn ? (
+            <div className="grid grid-cols-2 gap-x-6">
+              {renderItems(activeItems.slice(0, Math.ceil(itemCount / 2)))}
+              {renderItems(activeItems.slice(Math.ceil(itemCount / 2)), Math.ceil(itemCount / 2))}
+            </div>
+          ) : (
+            renderItems(activeItems)
+          )}
+          {itemCount === 0 && <div className="text-center text-slate-400 py-10">No items in this invoice.</div>}
+        </main>
+      </div>
+
+      <footer className="pt-4">
+        <div className="flex justify-end">
+          <div className="w-full max-w-sm">
+            <div className="flex justify-between text-lg font-black text-slate-900 bg-slate-100 p-4 rounded-lg">
+              <span>Grand Total</span>
+              <span className="font-mono tracking-tight">{formatCurrency(invoice.total)}</span>
+            </div>
           </div>
         </div>
-      </div>
-
-      <div className="mb-4 flex gap-12">
-        <div className="flex-1">
-          <h2 className="text-[8pt] font-bold text-slate-900 uppercase tracking-widest mb-2 border-b border-slate-200 inline-block pb-0.5">BILL TO</h2>
-          <div className="pl-0 mt-1">
-            <p className="text-[11pt] font-bold text-slate-900 uppercase leading-none mb-1">{invoice.customerName}</p>
-            <p className="text-[8.5pt] text-slate-600 font-medium leading-tight max-w-[420px]">{invoice.customerAddress}</p>
-          </div>
+        <div className="text-[7pt] text-slate-400 border-t border-slate-200 pt-2 mt-4">
+           <span className="font-black italic">Conditions:</span>
+           <span> No adjustments after departure. EVER GREEN PRODUCE not liable for indirect damages.</span>
         </div>
-        <div className="text-right pt-6">
-           <p className="text-[7.5pt] font-bold text-slate-500 uppercase tracking-wide">Terms: Due on Delivery</p>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-hidden">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="text-[7pt] font-black uppercase tracking-[0.2em] text-slate-400 border-b-2 border-slate-900">
-              <th className="text-left py-2 w-10">#</th>
-              <th className="text-left py-2">Item Description</th>
-              <th className="text-center py-2 w-16">Qty</th>
-              <th className="text-right py-2 w-28">Price</th>
-              <th className="text-right py-2 w-32">Total</th>
-            </tr>
-          </thead>
-          <tbody className={`divide-y divide-slate-100 ${tableFontSize}`}>
-            {activeItems.map((item, idx) => (
-              <tr key={idx} className={`${rowHeight} group hover:bg-slate-50 transition-colors`}>
-                <td className={`${paddingY} text-slate-300 font-mono text-[6.5pt]`}>{idx + 1}</td>
-                <td className={`${paddingY} font-bold text-slate-800 uppercase tracking-tight`}>{item.name}</td>
-                <td className={`${paddingY} text-center font-mono font-black text-slate-500`}>{item.quantity}</td>
-                <td className={`${paddingY} text-right font-mono text-slate-400`}>{formatCurrency(item.price)}</td>
-                <td className={`${paddingY} text-right font-mono font-black text-slate-900`}>{formatCurrency(item.total)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="mt-4 pt-4 border-t-4 border-slate-900 flex justify-between items-end">
-        <div className="text-[7pt] text-slate-400 font-bold uppercase tracking-tight leading-tight max-w-[350px]">
-           <p className="text-slate-800 font-black mb-1 italic">Conditions of Sale:</p>
-           <p>Deliveries must be verified on-site. No adjustments after departure. EVER GREEN PRODUCE L.L.C is not liable for indirect damages post-acceptance.</p>
-        </div>
-        
-        <div className="flex flex-col items-end">
-           <p className="text-[8pt] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Grand Total Amount</p>
-           <div className="bg-slate-900 text-white px-8 py-3 rounded-xl shadow-lg">
-             <span className="text-[26pt] font-black font-mono tracking-tighter leading-none">{formatCurrency(invoice.total)}</span>
-           </div>
-        </div>
-      </div>
-
-      <div className="mt-8 pt-4 border-t border-slate-100 flex justify-between items-center opacity-40">
-        <p className="text-[6.5pt] font-black text-slate-400 uppercase tracking-[0.6em] select-none">PRODUCE DISTRIBUTION HUB</p>
-        <p className="text-[6pt] font-bold text-slate-500 italic">For Re-orders: {ORDER_PHONE}</p>
-      </div>
+      </footer>
     </div>
   );
 });
@@ -517,7 +583,7 @@ const InvoiceList = ({ invoices, setInvoices, onPrint, onEdit, onBack }: { invoi
                 <td className="px-6 py-4 font-black text-slate-800 uppercase text-xs">{inv.customerName}</td>
                 <td className="px-6 py-4 text-right font-mono font-black text-green-600">{formatCurrency(inv.total)}</td>
                 <td className="px-6 py-4 text-right flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => onPrint(inv)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl" title="Generate PDF"><FileDown size={18}/></button>
+                                    <button onClick={() => onPrint(inv)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl" title="Print / Download"><Printer size={18}/></button>
                   <button onClick={() => onEdit(inv)} className="p-2 text-orange-600 hover:bg-orange-50 rounded-xl" title="Edit"><Edit size={18}/></button>
                   <button onClick={() => { if(window.confirm('Delete invoice?')) setInvoices(invoices.filter(item => item.id !== inv.id)); }} className="p-2 text-red-600 hover:bg-red-50 rounded-xl" title="Delete"><Trash2 size={18}/></button>
                 </td>
@@ -786,7 +852,8 @@ const InvoiceForm = ({
   );
 };
 
-// --- Reports & Exports ---
+
+
 const ReportsView = ({ invoices, onBack }: { invoices: Invoice[], onBack: () => void }) => {
   const downloadWeeklyReport = () => {
     const today = new Date();
@@ -879,22 +946,24 @@ const App = () => {
   const [customers, setCustomers] = useLocalStorage<Customer[]>('eg_customers', []);
   const [products, setProducts] = useLocalStorage<Product[]>('eg_products', INITIAL_PRODUCTS);
   const [invoices, setInvoices] = useLocalStorage<Invoice[]>('eg_invoices', []);
-  const [activePrintInvoice, setActivePrintInvoice] = useState<Invoice | null>(null);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
+
+  const [previewingInvoice, setPreviewingInvoice] = useState<Invoice | null>(null);
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
 
   const invoiceRef = useRef<HTMLDivElement>(null);
 
-  const handleCreateInvoice = (inv: Invoice) => {
+                const handleCreateInvoice = (inv: Invoice) => {
     setInvoices([...invoices, inv]);
-    setActivePrintInvoice(inv);
-    setView('print-view');
+    setPreviewingInvoice(inv);
+    setIsPreviewModalOpen(true);
   };
 
-  const handleUpdateInvoice = (inv: Invoice) => {
+                const handleUpdateInvoice = (inv: Invoice) => {
     setInvoices(invoices.map(i => i.id === inv.id ? inv : i));
     setEditingInvoice(null);
-    setActivePrintInvoice(inv);
-    setView('print-view');
+    setPreviewingInvoice(inv);
+    setIsPreviewModalOpen(true);
   };
 
   const handleQuickAddCustomer = (c: Omit<Customer, 'id' | 'createdAt'>) => {
@@ -913,28 +982,30 @@ const App = () => {
     }
   };
 
-  const handleDownloadPDF = async () => {
-    if (!activePrintInvoice) return;
-    setIsGenerating(true);
-    
-    const element = document.getElementById('invoice-content');
-    const opt = {
-      margin: 0,
-      filename: `Invoice_${activePrintInvoice.number}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
+    const startPreviewProcess = (invoice: Invoice) => {
+    setPreviewingInvoice(invoice);
+    setIsPreviewModalOpen(true);
+  };
 
-    try {
-      // @ts-ignore
-      await window.html2pdf().set(opt).from(element).save();
-    } catch (error) {
-      console.error('PDF Generation failed', error);
-      alert('PDF generation failed. Using standard print dialog instead.');
-      window.print();
-    } finally {
-      setIsGenerating(false);
+  const executePrint = (layout: LayoutOption) => {
+    window.print();
+    setIsPreviewModalOpen(false);
+    setPreviewingInvoice(null);
+  };
+
+  const handleDownloadPDF = (layout: LayoutOption) => {
+    const content = document.getElementById('invoice-content');
+    if (content && previewingInvoice) {
+      (window as any).html2pdf(content, {
+        margin: 0,
+        filename: `invoice-${previewingInvoice.number}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      }).then(() => {
+        setIsPreviewModalOpen(false);
+        setPreviewingInvoice(null);
+      });
     }
   };
 
@@ -944,7 +1015,34 @@ const App = () => {
   );
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <>
+      <style>{`
+        @media print {
+          body > *:not(#invoice-content) {
+            display: none;
+          }
+          body {
+            margin: 0;
+            padding: 0;
+          }
+          #invoice-content {
+            visibility: visible;
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            border: none;
+            transform: scale(1) !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+        }
+      `}</style>
+      <div className="flex min-h-screen bg-slate-50">
       {view !== 'print-view' && <Sidebar currentView={view} setView={setView} isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />}
       
       <div className="flex-1 flex flex-col min-h-screen">
@@ -1026,7 +1124,7 @@ const App = () => {
             <InvoiceList 
               invoices={invoices} 
               setInvoices={setInvoices} 
-              onPrint={(i) => { setActivePrintInvoice(i); setView('print-view'); }} 
+              onPrint={startPreviewProcess} 
               onEdit={(i) => { setEditingInvoice(i); setView('edit-invoice'); }}
               onBack={() => setView('dashboard')} 
             />
@@ -1056,28 +1154,20 @@ const App = () => {
             />
           )}
 
-          {view === 'print-view' && activePrintInvoice && (
-            <div className="py-4 bg-slate-100 min-h-screen print:p-0 print:bg-white overflow-y-auto no-scrollbar">
-              <div className="max-w-[210mm] mx-auto mb-4 px-4 flex justify-between items-center no-print">
-                <button onClick={() => setView('invoices')} className="bg-white border border-slate-200 text-slate-700 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-sm transition-all active:scale-95"><ChevronLeft size={16}/> Return</button>
-                <div className="flex gap-2">
-                  <button 
-                    onClick={handleDownloadPDF} 
-                    disabled={isGenerating}
-                    className="bg-green-600 text-white px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg hover:bg-green-700 transition-all active:scale-95 disabled:opacity-50"
-                  >
-                    {isGenerating ? <Loader2 size={16} className="animate-spin"/> : <FileDown size={16}/>}
-                    {isGenerating ? "Creating PDF..." : "Download PDF"}
-                  </button>
-                  <button onClick={() => window.print()} className="bg-slate-900 text-white px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-xl transition-all hover:bg-slate-800 active:scale-95"><Printer size={16}/> Print</button>
-                </div>
-              </div>
-              <InvoicePrint invoice={activePrintInvoice} ref={invoiceRef} />
-            </div>
-          )}
+          <LivePreviewModal 
+        isOpen={isPreviewModalOpen}
+        onClose={() => {
+          setIsPreviewModalOpen(false);
+          setPreviewingInvoice(null);
+        }}
+        onPrint={executePrint}
+        onDownload={handleDownloadPDF}
+        invoice={previewingInvoice}
+      />
         </main>
       </div>
     </div>
+    </>
   );
 };
 
