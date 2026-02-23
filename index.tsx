@@ -379,7 +379,7 @@ const LivePreviewModal = ({ isOpen, onClose, onPrint, onDownload, invoice }: { i
         </div>
         <div className="flex gap-2">
           <button onClick={onClose} className="py-2 px-4 bg-slate-600 text-white font-bold rounded-lg text-xs">Cancel</button>
-          <button type="button" onClick={(e) => { e.preventDefault(); onPrint(layout); }} className="py-2 px-4 bg-blue-600 text-white font-bold rounded-lg text-xs flex items-center gap-2"><Printer size={14}/> Print Document</button>
+          <button type="button" onClick={(e) => { e.preventDefault(); onPrint(layout); }} className="py-2 px-4 bg-blue-600 text-white font-bold rounded-lg text-xs flex items-center gap-2 no-print"><Printer size={14}/> Print Document</button>
           <button onClick={() => onDownload(layout)} className="py-2 px-4 bg-green-600 text-white font-bold rounded-lg text-xs flex items-center gap-2"><FileDown size={14}/> Download PDF</button>
         </div>
       </div>
@@ -994,7 +994,8 @@ const App = () => {
       return;
     }
 
-    const contentToPrint = printArea.innerHTML;
+    const contentToPrint = printArea.cloneNode(true) as HTMLElement;
+    
     const allStyles = Array.from(document.styleSheets)
       .map(styleSheet => {
         try {
@@ -1005,21 +1006,21 @@ const App = () => {
       })
       .join('\n');
 
-    const printWindow = window.open('', '', 'height=800,width=800');
+    const printWindow = window.open('', '_blank');
 
     if (printWindow) {
       printWindow.document.write('<html><head><title>Print Invoice</title>');
       printWindow.document.write('<style>' + allStyles + '</style>');
       printWindow.document.write('</head><body>');
-      printWindow.document.write(contentToPrint);
+      printWindow.document.body.appendChild(contentToPrint);
       printWindow.document.write('</body></html>');
       printWindow.document.close();
 
-      setTimeout(() => { 
-        printWindow.focus(); // Required for some browsers
+      printWindow.onload = () => {
+        printWindow.focus();
         printWindow.print();
         printWindow.close();
-      }, 250); 
+      };
     }
   };
 
