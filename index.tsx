@@ -383,7 +383,7 @@ const LivePreviewModal = ({ isOpen, onClose, onPrint, onDownload, invoice }: { i
           <button onClick={() => onDownload(layout)} className="py-2 px-4 bg-green-600 text-white font-bold rounded-lg text-xs flex items-center gap-2"><FileDown size={14}/> Download PDF</button>
         </div>
       </div>
-      <div className="w-[210mm] shadow-2xl rounded-lg overflow-hidden my-auto">
+      <div id="print-wrapper" className="w-[210mm] shadow-2xl rounded-lg overflow-hidden my-auto">
         <InvoicePrint ref={invoiceRef} invoice={invoice} layout={layout} />
       </div>
     </div>
@@ -988,9 +988,11 @@ const App = () => {
   };
 
   const executePrint = (layout: LayoutOption) => {
-    window.print();
-    setIsPreviewModalOpen(false);
-    setPreviewingInvoice(null);
+    document.body.classList.add('printing');
+    setTimeout(() => {
+      window.print();
+      document.body.classList.remove('printing');
+    }, 100);
   };
 
   const handleDownloadPDF = (layout: LayoutOption) => {
@@ -1017,27 +1019,14 @@ const App = () => {
   return (
     <>
       <style>{`
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          #invoice-content, #invoice-content * {
-            visibility: visible;
-          }
-          #invoice-content {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: auto;
-            margin: 0;
-            padding: 0;
-            border: none;
-            transform: scale(1) !important;
-          }
-          .no-print {
-            display: none !important;
-          }
+        body.printing #root > *:not(#print-wrapper) {
+          display: none;
+        }
+        body.printing #print-wrapper {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
         }
       `}</style>
       <div className="flex min-h-screen bg-slate-50">
