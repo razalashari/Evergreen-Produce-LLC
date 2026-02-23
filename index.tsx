@@ -1022,6 +1022,7 @@ const App = () => {
       margin: 0;
       background: white;
       box-sizing: border-box;
+      overflow: visible !important;
     }
     table { width: 100%; table-layout: fixed; border-collapse: collapse; }
     tr { page-break-inside: avoid; }
@@ -1093,12 +1094,13 @@ const App = () => {
       const opt = {
         margin: 0,
         filename: `EVERGREEN-INV-${previewingInvoice.number}.pdf`,
-        image: { type: 'jpeg', quality: 1 },
+        image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { 
-          scale: 3, // Higher scale for professional PDF quality
+          scale: 2, // Optimized for mobile memory limits
           useCORS: true,
           letterRendering: true,
-          logging: false
+          logging: false,
+          windowWidth: 800 // Forces desktop-like rendering on iPad
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
       };
