@@ -993,46 +993,41 @@ const App = () => {
     setIsPreviewModalOpen(true);
   };
 
+  // --- Dedicated CSS Payloads ---
+  const PRINT_CSS = `
+    @page { size: A4; margin: 10mm; }
+    body { margin: 0; padding: 0; background: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    #invoice-wrapper { width: 100%; }
+    table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+    .no-print { display: none !important; }
+    tr { page-break-inside: avoid; }
+  `;
+
+  const PDF_CSS = `
+    body { margin: 0; padding: 0; background: white; -webkit-print-color-adjust: exact; }
+    #invoice-wrapper { 
+      width: 210mm; 
+      min-height: 297mm; 
+      padding: 15mm; 
+      margin: 0;
+      background: white;
+      box-sizing: border-box;
+    }
+    table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+    tr { page-break-inside: avoid; }
+    h1, h2, p, span { margin: 0; padding: 0; }
+    .no-print { display: none !important; }
+  `;
+
   const getInvoiceTemplate = (content: string, mode: 'print' | 'pdf') => {
-    const isPdf = mode === 'pdf';
+    const css = mode === 'print' ? PRINT_CSS : PDF_CSS;
     return `
+      <!DOCTYPE html>
       <html>
         <head>
-          <title>Invoice</title>
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <style>
-            @import url('https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css');
-            
-            /* Base Reset */
-            * { box-sizing: border-box !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            body { margin: 0; padding: 0; background: white; font-family: sans-serif; }
-            
-            /* Table Fixes */
-            table { width: 100% !important; table-layout: fixed !important; border-collapse: collapse !important; }
-            th, td { word-wrap: break-word; overflow-wrap: break-word; }
-            
-            ${isPdf ? `
-              /* PDF Specific Styles */
-              #invoice-wrapper {
-                width: 210mm;
-                min-height: 297mm;
-                margin: 0 auto;
-                padding: 15mm;
-                position: relative;
-                background: white;
-                overflow: hidden;
-              }
-            ` : `
-              /* Print Specific Styles */
-              @page { size: A4; margin: 0; }
-              #invoice-wrapper {
-                width: 100%;
-                padding: 15mm;
-              }
-            `}
-            
-            .no-print { display: none !important; }
-          </style>
+          <title>Invoice Document</title>
+          <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+          <style>${css}</style>
         </head>
         <body>
           <div id="invoice-wrapper">${content}</div>
@@ -1071,9 +1066,10 @@ const App = () => {
 
     const content = printArea.innerHTML;
     
-    // Create a hidden iframe or div to render the PDF content in isolation
+    // Create an isolated worker element
     const worker = document.createElement('div');
-    worker.style.position = 'fixed';
+    worker.id = 'pdf-worker';
+    worker.style.position = 'absolute';
     worker.style.left = '-9999px';
     worker.style.top = '0';
     worker.innerHTML = getInvoiceTemplate(content, 'pdf');
@@ -1084,21 +1080,24 @@ const App = () => {
     if (element) {
       const opt = {
         margin: 0,
-        filename: `invoice-${previewingInvoice.number}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
+        filename: `EVERGREEN-INV-${previewingInvoice.number}.pdf`,
+        image: { type: 'jpeg', quality: 1 },
         html2canvas: { 
-          scale: 2, 
+          scale: 3, // Higher scale for professional PDF quality
           useCORS: true,
           letterRendering: true,
           logging: false
         },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
       };
 
       (window as any).html2pdf().set(opt).from(element).save().then(() => {
         document.body.removeChild(worker);
         setIsPreviewModalOpen(false);
         setPreviewingInvoice(null);
+      }).catch((err: any) => {
+        console.error('PDF Generation Error:', err);
+        document.body.removeChild(worker);
       });
     }
   };
