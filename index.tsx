@@ -379,11 +379,11 @@ const LivePreviewModal = ({ isOpen, onClose, onPrint, onDownload, invoice }: { i
         </div>
         <div className="flex gap-2">
           <button onClick={onClose} className="py-2 px-4 bg-slate-600 text-white font-bold rounded-lg text-xs">Cancel</button>
-          <button onClick={() => onPrint(layout)} className="py-2 px-4 bg-blue-600 text-white font-bold rounded-lg text-xs flex items-center gap-2"><Printer size={14}/> Print Document</button>
+          <button type="button" onClick={(e) => { e.preventDefault(); onPrint(layout); }} className="py-2 px-4 bg-blue-600 text-white font-bold rounded-lg text-xs flex items-center gap-2"><Printer size={14}/> Print Document</button>
           <button onClick={() => onDownload(layout)} className="py-2 px-4 bg-green-600 text-white font-bold rounded-lg text-xs flex items-center gap-2"><FileDown size={14}/> Download PDF</button>
         </div>
       </div>
-      <div id="print-wrapper" className="w-[210mm] shadow-2xl rounded-lg overflow-hidden my-auto">
+      <div id="invoice-print-area" className="w-[210mm] shadow-2xl rounded-lg overflow-hidden my-auto">
         <InvoicePrint ref={invoiceRef} invoice={invoice} layout={layout} />
       </div>
     </div>
@@ -988,11 +988,39 @@ const App = () => {
   };
 
   const executePrint = (layout: LayoutOption) => {
-    document.body.classList.add('printing');
-    setTimeout(() => {
-      window.print();
-      document.body.classList.remove('printing');
-    }, 100);
+    const printArea = document.getElementById('invoice-print-area');
+    if (!printArea) {
+      console.error('Print area not found!');
+      return;
+    }
+
+    const contentToPrint = printArea.innerHTML;
+    const allStyles = Array.from(document.styleSheets)
+      .map(styleSheet => {
+        try {
+          return Array.from(styleSheet.cssRules).map(rule => rule.cssText).join('');
+        } catch (e) {
+          return '';
+        }
+      })
+      .join('\n');
+
+    const printWindow = window.open('', '', 'height=800,width=800');
+
+    if (printWindow) {
+      printWindow.document.write('<html><head><title>Print Invoice</title>');
+      printWindow.document.write('<style>' + allStyles + '</style>');
+      printWindow.document.write('</head><body>');
+      printWindow.document.write(contentToPrint);
+      printWindow.document.write('</body></html>');
+      printWindow.document.close();
+
+      setTimeout(() => { 
+        printWindow.focus(); // Required for some browsers
+        printWindow.print();
+        printWindow.close();
+      }, 250); 
+    }
   };
 
   const handleDownloadPDF = (layout: LayoutOption) => {
@@ -1019,14 +1047,17 @@ const App = () => {
   return (
     <>
       <style>{`
-        body.printing #root > *:not(#print-wrapper) {
-          display: none;
-        }
-        body.printing #print-wrapper {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
+        @media print {
+          body * { visibility: hidden; }
+          #invoice-print-area, #invoice-print-area * {
+            visibility: visible;
+          }
+          #invoice-print-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+          }
         }
       `}</style>
       <div className="flex min-h-screen bg-slate-50">
