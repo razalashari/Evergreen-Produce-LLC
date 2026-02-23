@@ -425,24 +425,28 @@ const InvoicePrint = React.forwardRef<HTMLDivElement, { invoice: Invoice, layout
   }[layout] : '';
 
   const renderItems = (items: InvoiceItem[], offset = 0) => (
-    <div className="flex flex-col"> 
-      <div className="flex font-black uppercase text-slate-500 border-b-2 border-slate-900 text-[7pt] py-1">
-        <div className="w-6 pl-1">#</div>
-        <div className="flex-1">Item</div>
-        <div className="w-10 text-center">Qty</div>
-        <div className="w-16 text-right">Price</div>
-        <div className="w-20 text-right pr-1">Total</div>
-      </div>
-      {items.map((item, idx) => (
-        <div key={idx} className={`flex border-b border-slate-100 items-start ${verticalPadding}`} style={{ pageBreakInside: 'avoid' }}>
-          <div className="w-6 pl-1 font-mono text-slate-400 pt-0.5">{offset + idx + 1}</div>
-          <div className="flex-1 font-bold uppercase tracking-tight text-slate-800 leading-tight">{item.name}</div>
-          <div className="w-10 text-center font-mono font-bold pt-0.5">{item.quantity}</div>
-          <div className="w-16 text-right font-mono text-slate-500 pt-0.5">{formatCurrency(item.price)}</div>
-          <div className="w-20 text-right pr-1 font-mono font-black pt-0.5">{formatCurrency(item.total)}</div>
-        </div>
-      ))}
-    </div>
+    <table className="w-full text-left border-collapse" style={{ tableLayout: 'fixed' }}>
+      <thead>
+        <tr className="font-black uppercase text-slate-500 border-b-2 border-slate-900 text-[7pt]">
+          <th className="w-[30px] py-1 pl-1">#</th>
+          <th className="py-1">Item</th>
+          <th className="w-[40px] py-1 text-center">Qty</th>
+          <th className="w-[70px] py-1 text-right">Price</th>
+          <th className="w-[80px] py-1 text-right pr-1">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {items.map((item, idx) => (
+          <tr key={idx} className={`border-b border-slate-100 ${verticalPadding}`} style={{ pageBreakInside: 'avoid' }}>
+            <td className="w-[30px] pl-1 font-mono text-slate-400 align-top pt-1">{offset + idx + 1}</td>
+            <td className="font-bold uppercase tracking-tight text-slate-800 leading-tight align-top pt-1 break-words">{item.name}</td>
+            <td className="w-[40px] text-center font-mono font-bold align-top pt-1">{item.quantity}</td>
+            <td className="w-[70px] text-right font-mono text-slate-500 align-top pt-1">{formatCurrency(item.price)}</td>
+            <td className="w-[80px] text-right pr-1 font-mono font-black align-top pt-1">{formatCurrency(item.total)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 
   return (
@@ -1050,12 +1054,37 @@ const App = () => {
       <style>{`
         @page { 
           size: A4; 
-          margin: 0; 
+          margin: 5mm; 
         }
         @media print {
           html, body {
             width: 210mm;
-            
+            height: 297mm;
+            margin: 0;
+            padding: 0;
+            -webkit-print-color-adjust: exact;
+          }
+          .no-print {
+            display: none !important;
+          }
+          #invoice-print-area {
+            width: 100% !important;
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+          }
+          #invoice-content {
+            width: 100% !important;
+            padding: 10mm !important;
+            box-sizing: border-box !important;
+          }
+          table {
+            width: 100% !important;
+            table-layout: fixed !important;
+          }
+        }
       `}</style>
       <div className="flex min-h-screen bg-slate-50">
       {view !== 'print-view' && <Sidebar currentView={view} setView={setView} isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />}
