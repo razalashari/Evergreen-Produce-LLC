@@ -1014,15 +1014,22 @@ const App = () => {
   `;
 
   const PDF_CSS = `
-    body { margin: 0; padding: 0; background: white; -webkit-print-color-adjust: exact; }
+    html, body { 
+      margin: 0; 
+      padding: 0; 
+      background: white; 
+      width: 210mm;
+      -webkit-print-color-adjust: exact; 
+    }
     #invoice-wrapper { 
       width: 210mm; 
-      min-height: 297mm; 
+      height: 297mm; 
       padding: 15mm; 
       margin: 0;
       background: white;
       box-sizing: border-box;
-      overflow: visible !important;
+      overflow: hidden;
+      position: relative;
     }
     table { width: 100%; table-layout: fixed; border-collapse: collapse; }
     tr { page-break-inside: avoid; }
@@ -1094,13 +1101,15 @@ const App = () => {
       const opt = {
         margin: 0,
         filename: `EVERGREEN-INV-${previewingInvoice.number}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
+        image: { type: 'jpeg', quality: 1 },
         html2canvas: { 
-          scale: 2, // Optimized for mobile memory limits
+          scale: 2, 
           useCORS: true,
           letterRendering: true,
           logging: false,
-          windowWidth: 800 // Forces desktop-like rendering on iPad
+          windowWidth: 794, // Exact A4 width in pixels at 96 DPI
+          scrollX: 0,
+          scrollY: 0
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
       };
