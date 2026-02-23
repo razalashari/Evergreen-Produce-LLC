@@ -383,7 +383,7 @@ const LivePreviewModal = ({ isOpen, onClose, onPrint, onDownload, invoice }: { i
           <button onClick={() => onDownload(layout)} className="py-2 px-4 bg-green-600 text-white font-bold rounded-lg text-xs flex items-center gap-2"><FileDown size={14}/> Download PDF</button>
         </div>
       </div>
-      <div id="invoice-print-area" className="w-full max-w-3xl mx-auto shadow-2xl rounded-lg overflow-hidden my-auto">
+      <div id="invoice-print-area" className="w-full max-w-[700px] mx-auto shadow-2xl rounded-lg overflow-hidden my-auto">
         <InvoicePrint ref={invoiceRef} invoice={invoice} layout={layout} />
       </div>
     </div>
@@ -425,24 +425,26 @@ const InvoicePrint = React.forwardRef<HTMLDivElement, { invoice: Invoice, layout
   }[layout] : '';
 
   const renderItems = (items: InvoiceItem[], offset = 0) => (
-    <table className="w-full text-left border-collapse" style={{ tableLayout: 'fixed' }}>
+    <table className="w-full text-left border-collapse" style={{ tableLayout: 'fixed', width: '100%' }}>
       <thead>
         <tr className="font-black uppercase text-slate-500 border-b-2 border-slate-900 text-[7pt]">
-          <th className="w-[30px] py-1 pl-1">#</th>
-          <th className="py-1">Item</th>
-          <th className="w-[40px] py-1 text-center">Qty</th>
-          <th className="w-[70px] py-1 text-right">Price</th>
-          <th className="w-[80px] py-1 text-right pr-1">Total</th>
+          <th style={{ width: '35px' }} className="py-1 pl-1">#</th>
+          <th style={{ width: 'auto' }} className="py-1">Item</th>
+          <th style={{ width: '45px' }} className="py-1 text-center">Qty</th>
+          <th style={{ width: '75px' }} className="py-1 text-right">Price</th>
+          <th style={{ width: '85px' }} className="py-1 text-right pr-1">Total</th>
         </tr>
       </thead>
       <tbody>
         {items.map((item, idx) => (
           <tr key={idx} className={`border-b border-slate-100 ${verticalPadding}`} style={{ pageBreakInside: 'avoid' }}>
-            <td className="w-[30px] pl-1 font-mono text-slate-400 align-top pt-1">{offset + idx + 1}</td>
-            <td className="font-bold uppercase tracking-tight text-slate-800 leading-tight align-top pt-1 break-words">{item.name}</td>
-            <td className="w-[40px] text-center font-mono font-bold align-top pt-1">{item.quantity}</td>
-            <td className="w-[70px] text-right font-mono text-slate-500 align-top pt-1">{formatCurrency(item.price)}</td>
-            <td className="w-[80px] text-right pr-1 font-mono font-black align-top pt-1">{formatCurrency(item.total)}</td>
+            <td style={{ width: '35px' }} className="pl-1 font-mono text-slate-400 align-top pt-1">{offset + idx + 1}</td>
+            <td style={{ width: 'auto' }} className="font-bold uppercase tracking-tight text-slate-800 leading-tight align-top pt-1 break-words overflow-hidden">
+              {item.name}
+            </td>
+            <td style={{ width: '45px' }} className="text-center font-mono font-bold align-top pt-1">{item.quantity}</td>
+            <td style={{ width: '75px' }} className="text-right font-mono text-slate-500 align-top pt-1">{formatCurrency(item.price)}</td>
+            <td style={{ width: '85px' }} className="text-right pr-1 font-mono font-black align-top pt-1">{formatCurrency(item.total)}</td>
           </tr>
         ))}
       </tbody>
@@ -991,53 +993,110 @@ const App = () => {
     setIsPreviewModalOpen(true);
   };
 
+  const getInvoiceTemplate = (content: string, mode: 'print' | 'pdf') => {
+    const isPdf = mode === 'pdf';
+    return `
+      <html>
+        <head>
+          <title>Invoice</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            @import url('https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css');
+            
+            /* Base Reset */
+            * { box-sizing: border-box !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            body { margin: 0; padding: 0; background: white; font-family: sans-serif; }
+            
+            /* Table Fixes */
+            table { width: 100% !important; table-layout: fixed !important; border-collapse: collapse !important; }
+            th, td { word-wrap: break-word; overflow-wrap: break-word; }
+            
+            ${isPdf ? `
+              /* PDF Specific Styles */
+              #invoice-wrapper {
+                width: 210mm;
+                min-height: 297mm;
+                margin: 0 auto;
+                padding: 15mm;
+                position: relative;
+                background: white;
+                overflow: hidden;
+              }
+            ` : `
+              /* Print Specific Styles */
+              @page { size: A4; margin: 0; }
+              #invoice-wrapper {
+                width: 100%;
+                padding: 15mm;
+              }
+            `}
+            
+            .no-print { display: none !important; }
+          </style>
+        </head>
+        <body>
+          <div id="invoice-wrapper">${content}</div>
+        </body>
+      </html>
+    `;
+  };
+
   const executePrint = (layout: LayoutOption) => {
     const printArea = document.getElementById('invoice-print-area');
-    if (!printArea) {
-      console.error('Print area not found!');
-      return;
-    }
+    if (!printArea) return;
 
-    const contentToPrint = printArea.cloneNode(true) as HTMLElement;
-    
-    const allStyles = Array.from(document.styleSheets)
-      .map(styleSheet => {
-        try {
-          return Array.from(styleSheet.cssRules).map(rule => rule.cssText).join('');
-        } catch (e) {
-          return '';
-        }
-      })
-      .join('\n');
-
+    const content = printArea.innerHTML;
     const printWindow = window.open('', '_blank');
 
     if (printWindow) {
-      printWindow.document.write('<html><head><title>Print Invoice</title>');
-      printWindow.document.write('<style>' + allStyles + '</style>');
-      printWindow.document.write('</head><body>');
-      printWindow.document.body.appendChild(contentToPrint);
-      printWindow.document.write('</body></html>');
+      printWindow.document.write(getInvoiceTemplate(content, 'print'));
+      printWindow.document.write(`
+        <script>
+          window.onload = () => {
+            setTimeout(() => {
+              window.focus();
+              window.print();
+              window.close();
+            }, 500);
+          };
+        </script>
+      `);
       printWindow.document.close();
-
-      printWindow.onload = () => {
-        printWindow.focus();
-        printWindow.print();
-        printWindow.close();
-      };
     }
   };
 
   const handleDownloadPDF = (layout: LayoutOption) => {
-    const content = document.getElementById('invoice-content');
-    if (content && previewingInvoice) {
-      (window as any).html2pdf(content, {
+    const printArea = document.getElementById('invoice-print-area');
+    if (!printArea || !previewingInvoice) return;
+
+    const content = printArea.innerHTML;
+    
+    // Create a hidden iframe or div to render the PDF content in isolation
+    const worker = document.createElement('div');
+    worker.style.position = 'fixed';
+    worker.style.left = '-9999px';
+    worker.style.top = '0';
+    worker.innerHTML = getInvoiceTemplate(content, 'pdf');
+    document.body.appendChild(worker);
+
+    const element = worker.querySelector('#invoice-wrapper');
+
+    if (element) {
+      const opt = {
         margin: 0,
         filename: `invoice-${previewingInvoice.number}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
+        html2canvas: { 
+          scale: 2, 
+          useCORS: true,
+          letterRendering: true,
+          logging: false
+        },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      }).then(() => {
+      };
+
+      (window as any).html2pdf().set(opt).from(element).save().then(() => {
+        document.body.removeChild(worker);
         setIsPreviewModalOpen(false);
         setPreviewingInvoice(null);
       });
@@ -1051,41 +1110,6 @@ const App = () => {
 
   return (
     <>
-      <style>{`
-        @page { 
-          size: A4; 
-          margin: 5mm; 
-        }
-        @media print {
-          html, body {
-            width: 210mm;
-            height: 297mm;
-            margin: 0;
-            padding: 0;
-            -webkit-print-color-adjust: exact;
-          }
-          .no-print {
-            display: none !important;
-          }
-          #invoice-print-area {
-            width: 100% !important;
-            max-width: none !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            box-shadow: none !important;
-            border-radius: 0 !important;
-          }
-          #invoice-content {
-            width: 100% !important;
-            padding: 10mm !important;
-            box-sizing: border-box !important;
-          }
-          table {
-            width: 100% !important;
-            table-layout: fixed !important;
-          }
-        }
-      `}</style>
       <div className="flex min-h-screen bg-slate-50">
       {view !== 'print-view' && <Sidebar currentView={view} setView={setView} isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />}
       
