@@ -483,10 +483,18 @@ const InvoicePrint = React.forwardRef<HTMLDivElement, { invoice: Invoice, layout
 
         <main className={`flex flex-col overflow-hidden pt-2 ${fontSizeClass}`}>
           {useTwoColumn ? (
-            <div className="grid grid-cols-2 gap-x-6">
-              {renderItems(activeItems.slice(0, Math.ceil(itemCount / 2)))}
-              {renderItems(activeItems.slice(Math.ceil(itemCount / 2)), Math.ceil(itemCount / 2))}
-            </div>
+            <table className="column-container">
+              <tbody>
+                <tr>
+                  <td className="column-cell">
+                    {renderItems(activeItems.slice(0, Math.ceil(itemCount / 2)))}
+                  </td>
+                  <td className="column-cell">
+                    {renderItems(activeItems.slice(Math.ceil(itemCount / 2)), Math.ceil(itemCount / 2))}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           ) : (
             renderItems(activeItems)
           )}
@@ -993,14 +1001,16 @@ const App = () => {
     setIsPreviewModalOpen(true);
   };
 
-  // --- Dedicated CSS Payloads ---
   const PRINT_CSS = `
-    @page { size: A4; margin: 10mm; }
+    @page { size: A4; margin: 0; }
     body { margin: 0; padding: 0; background: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-    #invoice-wrapper { width: 100%; }
+    #invoice-wrapper { width: 210mm; margin: 0 auto; }
     table { width: 100%; table-layout: fixed; border-collapse: collapse; }
     .no-print { display: none !important; }
     tr { page-break-inside: avoid; }
+    /* Prevent unexpected page breaks in two-column mode */
+    .column-container { width: 100%; border-spacing: 20px 0; border-collapse: separate; }
+    .column-cell { width: 50%; vertical-align: top; padding: 0; }
   `;
 
   const PDF_CSS = `
@@ -1017,6 +1027,8 @@ const App = () => {
     tr { page-break-inside: avoid; }
     h1, h2, p, span { margin: 0; padding: 0; }
     .no-print { display: none !important; }
+    .column-container { width: 100%; border-spacing: 20px 0; border-collapse: separate; }
+    .column-cell { width: 50%; vertical-align: top; padding: 0; }
   `;
 
   const getInvoiceTemplate = (content: string, mode: 'print' | 'pdf') => {
