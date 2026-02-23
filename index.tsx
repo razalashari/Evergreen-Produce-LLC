@@ -383,7 +383,7 @@ const LivePreviewModal = ({ isOpen, onClose, onPrint, onDownload, invoice }: { i
           <button onClick={() => onDownload(layout)} className="py-2 px-4 bg-green-600 text-white font-bold rounded-lg text-xs flex items-center gap-2"><FileDown size={14}/> Download PDF</button>
         </div>
       </div>
-      <div id="invoice-print-area" className="w-[210mm] shadow-2xl rounded-lg overflow-hidden my-auto">
+      <div id="invoice-print-area" className="w-full max-w-3xl mx-auto shadow-2xl rounded-lg overflow-hidden my-auto">
         <InvoicePrint ref={invoiceRef} invoice={invoice} layout={layout} />
       </div>
     </div>
@@ -1048,16 +1048,25 @@ const App = () => {
   return (
     <>
       <style>{`
+        @page { size: A4; margin: 0; }
         @media print {
-          body * { visibility: hidden; }
-          #invoice-print-area, #invoice-print-area * {
-            visibility: visible;
+          html, body {
+            width: 210mm;
+            height: 297mm;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          .no-print {
+            display: none !important;
           }
           #invoice-print-area {
-            position: absolute;
-            left: 0;
-            top: 0;
             width: 100%;
+            max-width: 100%;
+            margin: auto;
+            box-shadow: none;
+            border-radius: 0;
+            overflow: hidden;
           }
         }
       `}</style>
