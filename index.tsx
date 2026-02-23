@@ -446,7 +446,7 @@ const InvoicePrint = React.forwardRef<HTMLDivElement, { invoice: Invoice, layout
   );
 
   return (
-    <div ref={ref} id="invoice-content" className={`bg-white w-[210mm] mx-auto p-8 text-slate-900 font-sans flex flex-col leading-snug`} style={{ fontSize: dynamicFontSize }}>
+    <div ref={ref} id="invoice-content" className={`bg-white w-full mx-auto p-8 text-slate-900 font-sans flex flex-col leading-snug`} style={{ fontSize: dynamicFontSize }}>
       <header className="flex justify-between items-start pb-4 border-b-2 border-slate-900">
         <div className="flex items-center gap-4">
           <div className="bg-green-600 p-2.5 rounded-lg text-white"><Leaf size={28} /></div>
@@ -1048,27 +1048,14 @@ const App = () => {
   return (
     <>
       <style>{`
-        @page { size: A4; margin: 0; }
+        @page { 
+          size: A4; 
+          margin: 0; 
+        }
         @media print {
           html, body {
             width: 210mm;
-            height: 297mm;
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-          }
-          .no-print {
-            display: none !important;
-          }
-          #invoice-print-area {
-            width: 100%;
-            max-width: 100%;
-            margin: auto;
-            box-shadow: none;
-            border-radius: 0;
-            overflow: hidden;
-          }
-        }
+            
       `}</style>
       <div className="flex min-h-screen bg-slate-50">
       {view !== 'print-view' && <Sidebar currentView={view} setView={setView} isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />}
@@ -1200,7 +1187,8 @@ const App = () => {
 };
 
 const rootElement = document.getElementById('root');
-if (rootElement) {
+if (rootElement && !rootElement.hasAttribute('data-react-root')) {
+  rootElement.setAttribute('data-react-root', 'true');
   const root = createRoot(rootElement);
   root.render(<App />);
 }
