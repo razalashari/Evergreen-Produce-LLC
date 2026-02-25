@@ -1,5 +1,5 @@
 {
-  "description": "Professional Invoice Management System for Ever Green Produce LLC. Features dashboard, customer and product management, and A4 print-optimized invoice generation.",
+  "description": "Professional Produce Management System with custom branding, invoice generation, and business proposals for Ever Green Produce LLC.",
   "requestFramePermissions": [],
-  "name": "App"
+  "name": "Ever Green Produce Manager"
 }

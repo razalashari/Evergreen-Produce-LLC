@@ -33,8 +33,13 @@ import {
   Loader2,
   CalendarDays,
   PackagePlus,
-  Target
+  Target,
+  StickyNote,
+  Eye,
+  Trash,
+  FileSpreadsheet
 } from 'lucide-react';
+import { jsPDF } from 'jspdf';
 
 // --- Types & Interfaces ---
 
@@ -86,7 +91,9 @@ interface Invoice {
 // --- Constants ---
 
 const BUSINESS_NAME = "EVER GREEN PRODUCE L.L.C";
+const BUSINESS_TITLE = "Evergreen by Tahir";
 const BUSINESS_PHONE = "646-667-9749";
+const BUSINESS_LOCATION = "New York, NY";
 const ORDER_PHONE = "646-667-9749";
 
 const PRODUCT_NAMES = [
@@ -253,6 +260,7 @@ const Sidebar = ({
     { id: 'customers', icon: Users, label: 'Customers' },
     { id: 'products', icon: Package, label: 'Products' },
     { id: 'invoices', icon: FileText, label: 'Invoices' },
+    { id: 'notes', icon: StickyNote, label: 'Notes' },
     { id: 'reports', icon: BarChart3, label: 'Reports' },
   ];
 
@@ -385,6 +393,80 @@ const LivePreviewModal = ({ isOpen, onClose, onPrint, onDownload, invoice }: { i
       </div>
       <div id="invoice-print-area" className="w-full max-w-[700px] mx-auto shadow-2xl rounded-lg overflow-hidden my-auto">
         <InvoicePrint ref={invoiceRef} invoice={invoice} layout={layout} />
+      </div>
+    </div>
+  );
+};
+
+const NotesPreviewModal = ({ 
+  isOpen, 
+  onClose, 
+  onDownload, 
+  clientName, 
+  author, 
+  noteItems 
+}: { 
+  isOpen: boolean, 
+  onClose: () => void, 
+  onDownload: () => void, 
+  clientName: string, 
+  author: string, 
+  noteItems: any[] 
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/80 z-[101] flex flex-col items-center p-4 backdrop-blur-sm overflow-y-auto">
+      <div className="w-full max-w-5xl flex justify-end items-center py-4 sticky top-0 z-10">
+        <div className="flex gap-2">
+          <button onClick={onClose} className="py-2 px-4 bg-slate-600 text-white font-bold rounded-lg text-xs">Cancel</button>
+          <button onClick={onDownload} className="py-2 px-4 bg-green-600 text-white font-bold rounded-lg text-xs flex items-center gap-2">
+            <FileDown size={14}/> Download PDF
+          </button>
+        </div>
+      </div>
+      <div className="w-full max-w-[700px] mx-auto shadow-2xl rounded-lg overflow-hidden my-auto bg-white p-12">
+        <NotesPrint clientName={clientName} author={author} noteItems={noteItems} />
+      </div>
+    </div>
+  );
+};
+
+const NotesPrint = ({ clientName, author, noteItems }: { clientName: string, author: string, noteItems: any[] }) => {
+  return (
+    <div className="font-sans text-slate-900">
+      <div className="flex flex-col items-center mb-6">
+        <div className="bg-green-700 p-3 rounded-full text-white mb-2">
+          <Leaf size={32} />
+        </div>
+        <h1 className="text-2xl font-black text-green-800 uppercase tracking-tight">{BUSINESS_TITLE}</h1>
+        <p className="text-sm font-bold text-slate-500">Phone: {BUSINESS_PHONE}</p>
+        <p className="text-sm font-bold text-slate-500">{BUSINESS_LOCATION}</p>
+      </div>
+      
+      <div className="border-t-2 border-green-700 my-4"></div>
+      
+      <div className="mb-6">
+        <h2 className="text-lg font-black text-green-800 uppercase mb-4">Available Products</h2>
+        <div className="space-y-2">
+          {noteItems.map((item, idx) => (
+            <div key={idx} className="flex justify-between items-center py-2 border-b border-slate-100">
+              <div className="flex-1">
+                <p className="text-sm font-bold uppercase text-slate-800">{item.name}</p>
+                {item.pref && <p className="text-[10px] text-slate-400 italic">{item.pref}</p>}
+              </div>
+              <div className="flex gap-8 text-right">
+                {item.qty && <p className="text-xs font-bold text-slate-500">QTY: {item.qty}</p>}
+                {item.price && <p className="text-xs font-black text-green-700">${item.price}</p>}
+              </div>
+            </div>
+          ))}
+          {noteItems.length === 0 && <p className="text-center py-8 text-slate-300 italic">No products selected</p>}
+        </div>
+      </div>
+      
+      <div className="mt-12 pt-4 border-t border-slate-100 text-[10px] text-slate-400 text-center uppercase tracking-widest">
+        &copy; {new Date().getFullYear()} {BUSINESS_NAME}
       </div>
     </div>
   );
@@ -546,7 +628,7 @@ const Dashboard = ({ customers, invoices, setView }: { customers: Customer[], in
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         <button onClick={() => setView('new-invoice')} className="flex flex-col items-center justify-center p-6 bg-green-50 rounded-[2rem] border border-green-200 text-green-700 hover:bg-green-100 transition-all active:scale-95 group shadow-sm">
           <Plus className="w-8 h-8 mb-2 group-hover:scale-110 transition-transform" />
           <span className="text-[10px] font-black uppercase tracking-widest">New Order</span>
@@ -562,6 +644,10 @@ const Dashboard = ({ customers, invoices, setView }: { customers: Customer[], in
         <button onClick={() => setView('products')} className="flex flex-col items-center justify-center p-6 bg-orange-50 rounded-[2rem] border border-orange-200 text-orange-700 hover:bg-orange-100 transition-all active:scale-95 group shadow-sm">
           <Package className="w-8 h-8 mb-2 group-hover:scale-110 transition-transform" />
           <span className="text-[10px] font-black uppercase tracking-widest">Inventory</span>
+        </button>
+        <button onClick={() => setView('notes')} className="flex flex-col items-center justify-center p-6 bg-slate-50 rounded-[2rem] border border-slate-200 text-slate-700 hover:bg-slate-100 transition-all active:scale-95 group shadow-sm">
+          <StickyNote className="w-8 h-8 mb-2 group-hover:scale-110 transition-transform" />
+          <span className="text-[10px] font-black uppercase tracking-widest">Notes</span>
         </button>
       </div>
     </div>
@@ -948,11 +1034,283 @@ const ReportsView = ({ invoices, onBack }: { invoices: Invoice[], onBack: () => 
   );
 };
 
+const NotesView = ({ customers, products, onBack, onSavePDF }: { 
+  customers: Customer[], 
+  products: Product[],
+  onBack: () => void,
+  onSavePDF: (clientName: string, author: string, noteItems: any[]) => void
+}) => {
+  const [clientName, setClientName] = useState('');
+  const [author, setAuthor] = useState('');
+  const [noteItems, setNoteItems] = useState<{ name: string, qty: string, price: string, pref: string }[]>([]);
+  const [newItem, setNewItem] = useState({ name: '', qty: '', price: '', pref: '' });
+  const [style, setStyle] = useState({ color: '#16a34a', font: 'sans-serif' });
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  const handleAddItem = () => {
+    if (newItem.name.trim()) {
+      setNoteItems([...noteItems, { ...newItem }]);
+      setNewItem({ name: '', qty: '', price: '', pref: '' });
+    }
+  };
+
+  const handleRemoveItem = (idx: number) => {
+    setNoteItems(noteItems.filter((_, i) => i !== idx));
+  };
+
+  const handleProductSelect = (name: string) => {
+    const product = products.find(p => p.name === name);
+    if (product) {
+      setNewItem({ ...newItem, name: product.name, price: product.price.toString() });
+    } else {
+      setNewItem({ ...newItem, name });
+    }
+  };
+
+  const handleSave = () => {
+    setIsPreviewOpen(true);
+  };
+
+  return (
+    <div className="p-4 space-y-6 max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <ViewHeader title="Business Notes & Proposals" onBack={onBack} />
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-200/50">
+            <div className="flex items-center justify-between mb-8 pb-6 border-b border-slate-100">
+              <div className="flex items-center gap-4">
+                <div className="p-4 bg-green-600 rounded-2xl text-white shadow-lg shadow-green-200">
+                  <Leaf size={28} />
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-900 uppercase text-xl tracking-tighter leading-none">{BUSINESS_NAME}</h3>
+                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mt-2">{BUSINESS_PHONE}</p>
+                </div>
+              </div>
+              <div className="text-right hidden sm:block">
+                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Document Type</p>
+                <p className="text-xs font-black text-slate-900 uppercase">Proposal / Note</p>
+              </div>
+            </div>
+
+            <div className="space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Client Name (Optional)</label>
+                  <div className="relative">
+                    <Users className="absolute left-4 top-4 text-slate-300" size={16} />
+                    <input 
+                      list="customer-list"
+                      placeholder="Type or select client..." 
+                      value={clientName} 
+                      onChange={e => setClientName(e.target.value)} 
+                      className="w-full border border-slate-200 rounded-2xl pl-12 pr-5 py-4 text-sm font-bold bg-slate-50 focus:border-green-500 focus:bg-white outline-none transition-all shadow-inner" 
+                    />
+                  </div>
+                  <datalist id="customer-list">
+                    {customers.map(c => <option key={c.id} value={c.name} />)}
+                  </datalist>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Author / Owner</label>
+                  <div className="relative">
+                    <Edit className="absolute left-4 top-4 text-slate-300" size={16} />
+                    <input 
+                      placeholder="Your name..." 
+                      value={author} 
+                      onChange={e => setAuthor(e.target.value)} 
+                      className="w-full border border-slate-200 rounded-2xl pl-12 pr-5 py-4 text-sm font-bold bg-slate-50 focus:border-green-500 focus:bg-white outline-none transition-all shadow-inner" 
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between ml-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Product List Builder</label>
+                  <span className="text-[10px] font-black text-green-600 uppercase bg-green-50 px-3 py-1 rounded-full">{noteItems.length} items</span>
+                </div>
+                
+                <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Product Name</label>
+                      <input 
+                        list="product-list"
+                        placeholder="Select or type product..." 
+                        value={newItem.name} 
+                        onChange={e => handleProductSelect(e.target.value)}
+                        className="w-full border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold bg-white focus:border-green-500 outline-none transition-all" 
+                      />
+                      <datalist id="product-list">
+                        {products.map(p => <option key={p.id} value={p.name} />)}
+                      </datalist>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Qty</label>
+                        <input 
+                          placeholder="e.g. 5" 
+                          value={newItem.qty} 
+                          onChange={e => setNewItem({...newItem, qty: e.target.value})}
+                          className="w-full border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold bg-white focus:border-green-500 outline-none transition-all" 
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Price</label>
+                        <input 
+                          placeholder="0.00" 
+                          value={newItem.price} 
+                          onChange={e => setNewItem({...newItem, price: e.target.value})}
+                          className="w-full border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold bg-white focus:border-green-500 outline-none transition-all" 
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Optional Preferences</label>
+                    <div className="flex gap-3">
+                      <input 
+                        placeholder="e.g. Extra fresh, organic only..." 
+                        value={newItem.pref} 
+                        onChange={e => setNewItem({...newItem, pref: e.target.value})}
+                        onKeyPress={e => e.key === 'Enter' && handleAddItem()}
+                        className="flex-1 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold bg-white focus:border-green-500 outline-none transition-all" 
+                      />
+                      <button 
+                        onClick={handleAddItem} 
+                        className="px-6 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-green-600 transition-all active:scale-95 flex items-center gap-2"
+                      >
+                        <Plus size={16} /> Add
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-2 pt-2">
+                  {noteItems.map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-5 bg-white rounded-[1.5rem] border border-slate-100 group hover:border-green-200 hover:shadow-md transition-all">
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-[10px] font-mono font-black text-slate-400 group-hover:bg-green-50 group-hover:text-green-600 transition-colors">
+                          {(idx + 1).toString().padStart(2, '0')}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm font-black text-slate-800 uppercase leading-none">{item.name}</span>
+                            {item.qty && <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full">QTY: {item.qty}</span>}
+                            {item.price && <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">${item.price}</span>}
+                          </div>
+                          {item.pref && <p className="text-[10px] font-bold text-slate-400 mt-1.5 italic uppercase tracking-wider">{item.pref}</p>}
+                        </div>
+                      </div>
+                      <button onClick={() => handleRemoveItem(idx)} className="p-2.5 text-red-400 hover:bg-red-50 rounded-xl opacity-0 group-hover:opacity-100 transition-all">
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  ))}
+                  {noteItems.length === 0 && (
+                    <div className="py-20 text-center border-4 border-dashed border-slate-50 rounded-[3rem] bg-slate-50/30">
+                      <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Package className="text-slate-300" size={32} />
+                      </div>
+                      <p className="text-xs font-black text-slate-300 uppercase tracking-[0.2em]">List is currently empty</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-200/50">
+            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+              <div className="w-1 h-1 bg-green-500 rounded-full"></div>
+              Styling Options
+            </h4>
+            <div className="space-y-6">
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-3">Theme Accent</label>
+                <div className="flex flex-wrap gap-3">
+                  {[
+                    { name: 'Forest', color: '#16a34a' },
+                    { name: 'Slate', color: '#1e293b' },
+                    { name: 'Ocean', color: '#2563eb' },
+                    { name: 'Rose', color: '#dc2626' },
+                    { name: 'Royal', color: '#9333ea' }
+                  ].map(c => (
+                    <button 
+                      key={c.color} 
+                      onClick={() => setStyle({...style, color: c.color})}
+                      className={`w-10 h-10 rounded-2xl border-4 transition-all flex items-center justify-center ${style.color === c.color ? 'border-slate-900 scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
+                      style={{ backgroundColor: c.color }}
+                      title={c.name}
+                    >
+                      {style.color === c.color && <div className="w-2 h-2 bg-white rounded-full"></div>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-3">Typography</label>
+                <div className="grid grid-cols-1 gap-2">
+                  {[
+                    { id: 'sans-serif', name: 'Modern Sans' },
+                    { id: 'serif', name: 'Classic Serif' },
+                    { id: 'monospace', name: 'Technical Mono' }
+                  ].map(f => (
+                    <button 
+                      key={f.id}
+                      onClick={() => setStyle({...style, font: f.id})}
+                      className={`px-4 py-3 rounded-xl text-left text-xs font-black uppercase tracking-widest transition-all ${style.font === f.id ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
+                    >
+                      {f.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button 
+            onClick={handleSave}
+            disabled={noteItems.length === 0}
+            className="w-full py-6 bg-green-600 text-white rounded-[2.5rem] font-black uppercase text-sm tracking-[0.15em] shadow-2xl shadow-green-900/30 hover:bg-green-700 active:scale-95 transition-all flex items-center justify-center gap-4 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed group"
+          >
+            <Eye size={24} className="group-hover:bounce" />
+            Preview Proposal
+          </button>
+          
+          <div className="p-6 bg-slate-900 rounded-[2.5rem] text-center">
+            <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.3em] mb-2">Security Notice</p>
+            <p className="text-[10px] font-bold text-slate-300 leading-relaxed">This document will be generated as a secure PDF. Ensure all details are correct before exporting.</p>
+          </div>
+        </div>
+      </div>
+
+      <NotesPreviewModal 
+        isOpen={isPreviewOpen} 
+        onClose={() => setIsPreviewOpen(false)} 
+        onDownload={() => {
+          onSavePDF(clientName, author, noteItems);
+          setIsPreviewOpen(false);
+        }}
+        clientName={clientName}
+        author={author}
+        noteItems={noteItems}
+      />
+    </div>
+  );
+};
+
 // --- App Root Controller ---
 
 const App = () => {
   const [view, setView] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  
   const [isGenerating, setIsGenerating] = useState(false);
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
   const [productSearch, setProductSearch] = useState('');
@@ -960,6 +1318,8 @@ const App = () => {
   const [customers, setCustomers] = useLocalStorage<Customer[]>('eg_customers', []);
   const [products, setProducts] = useLocalStorage<Product[]>('eg_products', INITIAL_PRODUCTS);
   const [invoices, setInvoices] = useLocalStorage<Invoice[]>('eg_invoices', []);
+  const [notes, setNotes] = useLocalStorage<any[]>('eg_notes', []);
+  
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
 
   const [previewingInvoice, setPreviewingInvoice] = useState<Invoice | null>(null);
@@ -1100,7 +1460,7 @@ const App = () => {
     if (element) {
       const opt = {
         margin: 0,
-        filename: `EVERGREEN-INV-${previewingInvoice.number}.pdf`,
+        filename: `INV_${previewingInvoice.customerName.replace(/\s+/g, '_')}_${previewingInvoice.number}.pdf`,
         image: { type: 'jpeg', quality: 1 },
         html2canvas: { 
           scale: 2, 
@@ -1142,18 +1502,226 @@ const App = () => {
           {view === 'dashboard' && <Dashboard customers={customers} invoices={invoices} setView={setView} />}
           {view === 'customers' && (
              <div className="p-4 space-y-4">
-                <ViewHeader title="Client Directory" onBack={() => setView('dashboard')} />
-                <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-                   <table className="w-full text-left text-sm">
-                      <thead className="bg-slate-50 border-b"><tr className="text-xs uppercase font-black text-slate-400">
-                        <th className="px-6 py-4">Client Name</th><th className="px-6 py-4">Phone</th><th className="px-6 py-4">Address</th>
-                      </tr></thead>
-                      <tbody className="divide-y divide-slate-100">{customers.map(c => (
-                        <tr key={c.id} className="hover:bg-slate-50"><td className="px-6 py-4 font-bold uppercase">{c.name}</td><td className="px-6 py-4 font-mono">{c.phone}</td><td className="px-6 py-4 text-slate-500">{c.address}</td></tr>
-                      ))}</tbody>
-                   </table>
-                </div>
+                <ViewHeader 
+                  title={selectedCustomerId ? "Client History" : "Client Directory"} 
+                  onBack={() => {
+                    if (selectedCustomerId) setSelectedCustomerId(null);
+                    else setView('dashboard');
+                  }} 
+                />
+                
+                {!selectedCustomerId ? (
+                  <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-50 border-b"><tr className="text-xs uppercase font-black text-slate-400">
+                          <th className="px-6 py-4">Client Name</th><th className="px-6 py-4">Phone</th><th className="px-6 py-4">Address</th><th className="px-6 py-4"></th>
+                        </tr></thead>
+                        <tbody className="divide-y divide-slate-100">{customers.map(c => (
+                          <tr key={c.id} className="hover:bg-slate-50 group">
+                            <td className="px-6 py-4 font-bold uppercase">{c.name}</td>
+                            <td className="px-6 py-4 font-mono">{c.phone}</td>
+                            <td className="px-6 py-4 text-slate-500">{c.address}</td>
+                            <td className="px-6 py-4 text-right">
+                              <button 
+                                onClick={() => setSelectedCustomerId(c.id)}
+                                className="p-2 text-green-600 hover:bg-green-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                              >
+                                <ChevronRight size={18}/>
+                              </button>
+                            </td>
+                          </tr>
+                        ))}</tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                      <h3 className="text-xl font-black uppercase text-slate-900 mb-1">
+                        {customers.find(c => c.id === selectedCustomerId)?.name}
+                      </h3>
+                      <p className="text-sm text-slate-500 font-medium">
+                        {customers.find(c => c.id === selectedCustomerId)?.address}
+                      </p>
+                    </div>
+
+                    <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+                      <div className="p-6 border-b bg-slate-50/50">
+                        <h4 className="font-black uppercase text-xs text-slate-400 tracking-widest">Transaction History</h4>
+                      </div>
+                      <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-50 border-b">
+                          <tr className="text-[10px] uppercase font-black text-slate-400">
+                            <th className="px-6 py-4">Inv #</th>
+                            <th className="px-6 py-4">Date</th>
+                            <th className="px-6 py-4 text-right">Amount</th>
+                            <th className="px-6 py-4 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {invoices.filter(inv => inv.customerId === selectedCustomerId).map(inv => (
+                            <tr key={inv.id} className="hover:bg-slate-50 group">
+                              <td className="px-6 py-4 font-mono font-bold">#{inv.number}</td>
+                              <td className="px-6 py-4 text-slate-500">{new Date(inv.date).toLocaleDateString()}</td>
+                              <td className="px-6 py-4 text-right font-mono font-black">{formatCurrency(inv.total)}</td>
+                              <td className="px-6 py-4 text-right space-x-2">
+                                <button onClick={() => startPreviewProcess(inv)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition-all" title="View"><Eye size={16}/></button>
+                                <button onClick={() => { setPreviewingInvoice(inv); handleDownloadPDF('universal-fit'); }} className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition-all" title="Download"><Download size={16}/></button>
+                                <button 
+                                  onClick={() => {
+                                    const headers = ["Invoice #", "Date", "Product", "Qty", "Price", "Total"];
+                                    const rows = inv.items.map(item => [
+                                      inv.number,
+                                      new Date(inv.date).toLocaleDateString(),
+                                      `"${item.name}"`,
+                                      item.quantity,
+                                      item.price.toFixed(2),
+                                      item.total.toFixed(2)
+                                    ]);
+                                    rows.push(["", "", "Subtotal", "", "", inv.subtotal.toFixed(2)]);
+                                    rows.push(["", "", "Tax", "", "", inv.tax.toFixed(2)]);
+                                    rows.push(["", "", "Grand Total", "", "", inv.total.toFixed(2)]);
+                                    
+                                    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+                                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                                    const url = URL.createObjectURL(blob);
+                                    const link = document.createElement("a");
+                                    link.setAttribute("href", url);
+                                    link.setAttribute("download", `Invoice_${inv.number}_${inv.customerName.replace(/\s+/g, '_')}.csv`);
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                  }} 
+                                  className="p-2 text-blue-400 hover:bg-blue-50 rounded-lg transition-all" 
+                                  title="Export CSV"
+                                >
+                                  <FileSpreadsheet size={16}/>
+                                </button>
+                                <button onClick={() => {
+                                  if (confirm("Clear this invoice from history?")) {
+                                    setInvoices(invoices.filter(i => i.id !== inv.id));
+                                  }
+                                }} className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-all" title="Clear"><Trash size={16}/></button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {invoices.filter(inv => inv.customerId === selectedCustomerId).length === 0 && (
+                        <div className="p-12 text-center text-slate-400 font-bold uppercase text-xs italic">No invoices found for this client</div>
+                      )}
+                    </div>
+                  </div>
+                )}
              </div>
+          )}
+          {view === 'notes' && (
+            <NotesView 
+              customers={customers} 
+              products={products}
+              onBack={() => setView('dashboard')} 
+              onSavePDF={(clientName, author, noteItems) => {
+                const doc = new jsPDF({
+                  unit: 'mm',
+                  format: 'a4',
+                  orientation: 'portrait'
+                });
+
+                let yPos = 20;
+                const margin = 20;
+                const pageWidth = doc.internal.pageSize.getWidth();
+
+                // 1. Top Center: Evergreen Logo (Using a green circle as logo placeholder since we don't have the asset)
+                doc.setFillColor(22, 101, 52); // Dark green
+                doc.circle(pageWidth / 2, yPos, 8, 'F');
+                // Draw a simple leaf shape with lines
+                doc.setDrawColor(255, 255, 255);
+                doc.setLineWidth(0.5);
+                doc.line(pageWidth / 2, yPos - 4, pageWidth / 2, yPos + 4);
+                doc.line(pageWidth / 2, yPos - 4, pageWidth / 2 + 3, yPos);
+                doc.line(pageWidth / 2, yPos - 4, pageWidth / 2 - 3, yPos);
+                
+                yPos += 15;
+
+                // 2. Below Logo: Title, Phone, Location
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(22);
+                doc.setTextColor(22, 101, 52); // Dark green
+                doc.text(BUSINESS_TITLE, pageWidth / 2, yPos, { align: 'center' });
+                
+                yPos += 8;
+                doc.setFontSize(10);
+                doc.setTextColor(100, 116, 139); // Slate 500
+                doc.text(`Phone: ${BUSINESS_PHONE}`, pageWidth / 2, yPos, { align: 'center' });
+                
+                yPos += 5;
+                doc.text(BUSINESS_LOCATION, pageWidth / 2, yPos, { align: 'center' });
+                
+                yPos += 10;
+
+                // 3. Divider Line
+                doc.setDrawColor(22, 101, 52); // Dark green
+                doc.setLineWidth(0.5);
+                doc.line(margin, yPos, pageWidth - margin, yPos);
+                
+                yPos += 15;
+
+                // 4. Section Title: "Available Products"
+                doc.setFontSize(16);
+                doc.setTextColor(22, 101, 52); // Dark green
+                doc.text("Available Products", margin, yPos);
+                
+                yPos += 10;
+
+                // 5. Dynamic Product List
+                doc.setFontSize(10);
+                doc.setTextColor(30, 41, 59); // Slate 800
+                
+                noteItems.forEach((item, index) => {
+                  // Check if we need a new page (though user said no second page, we should still be careful)
+                  if (yPos > 270) return; 
+
+                  doc.setFont('helvetica', 'bold');
+                  doc.text(item.name.toUpperCase(), margin, yPos);
+                  
+                  const qtyText = item.qty ? `QTY: ${item.qty}` : "";
+                  const priceText = item.price ? `$${item.price}` : "";
+                  
+                  doc.setFont('helvetica', 'normal');
+                  doc.text(qtyText, pageWidth - margin - 40, yPos, { align: 'right' });
+                  
+                  doc.setFont('helvetica', 'bold');
+                  doc.setTextColor(22, 101, 52); // Dark green
+                  doc.text(priceText, pageWidth - margin, yPos, { align: 'right' });
+                  
+                  yPos += 5;
+                  
+                  if (item.pref) {
+                    doc.setFont('helvetica', 'italic');
+                    doc.setFontSize(8);
+                    doc.setTextColor(148, 163, 184); // Slate 400
+                    doc.text(item.pref.toUpperCase(), margin, yPos);
+                    yPos += 4;
+                  }
+                  
+                  // Separator line
+                  doc.setDrawColor(241, 245, 249); // Light grey
+                  doc.setLineWidth(0.1);
+                  doc.line(margin, yPos, pageWidth - margin, yPos);
+                  
+                  yPos += 8;
+                  doc.setFontSize(10);
+                  doc.setTextColor(30, 41, 59);
+                });
+
+                // Footer
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8);
+                doc.setTextColor(148, 163, 184);
+                doc.text(`© ${new Date().getFullYear()} ${BUSINESS_NAME}`, pageWidth / 2, 285, { align: 'center' });
+
+                doc.save(`Proposal_${clientName.replace(/\s+/g, '_') || 'Unnamed'}.pdf`);
+              }}
+            />
           )}
           {view === 'products' && (
              <div className="p-4 space-y-4">
